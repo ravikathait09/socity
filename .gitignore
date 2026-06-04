@@ -7,3 +7,4 @@
 *.pem
 npm-debug.log*
 .vercel
+/logs

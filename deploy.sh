@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Deploy Socity (Next.js) to Apache at socity.katharostechie.in
-# App root: /var/www/socity  |  Node listens on 127.0.0.1:3000, Apache reverse-proxies.
+# App root: /var/www/socity  |  Node (PM2) on 127.0.0.1:3300, Apache reverse-proxies.
 #
 # First time on server:
 #   sudo mkdir -p /var/www/socity
@@ -16,7 +16,7 @@ set -euo pipefail
 # --- configuration (override via environment) ---
 APP_DIR="${APP_DIR:-/var/www/socity}"
 DOMAIN="${DOMAIN:-socity.katharostechie.in}"
-APP_PORT="${APP_PORT:-3000}"
+APP_PORT="${APP_PORT:-3300}"
 SERVICE_NAME="${SERVICE_NAME:-socity}"
 NODE_MIN_MAJOR=18
 APACHE_SITE="${APACHE_SITE:-socity.katharostechie.in}"
@@ -55,7 +55,7 @@ ENV_FILE="$APP_DIR/.env.production"
 if [[ ! -f "$ENV_FILE" ]]; then
   cat >"$ENV_FILE" <<'ENVEOF'
 NODE_ENV=production
-PORT=3000
+PORT=3300
 HOSTNAME=127.0.0.1
 
 # REQUIRED: set before going live
@@ -106,43 +106,41 @@ if [[ "$RUN_SEED" == "1" ]]; then
   node --env-file="$ENV_FILE" "$APP_DIR/scripts/seed.mjs" || log "Seed skipped or failed (check MongoDB)"
 fi
 
-# --- systemd service ---
-SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
-cat >"$SERVICE_FILE" <<EOF
-[Unit]
-Description=Socity Next.js app (${DOMAIN})
-After=network.target mongod.service
-Wants=mongod.service
+# --- PM2 process manager ---
+command -v pm2 >/dev/null || npm install -g pm2
 
-[Service]
-Type=simple
-User=www-data
-Group=www-data
-WorkingDirectory=${STANDALONE}
-EnvironmentFile=${ENV_FILE}
-Environment=NODE_ENV=production
-Environment=PORT=${APP_PORT}
-Environment=HOSTNAME=127.0.0.1
-ExecStart=$(command -v node) server.js
-Restart=on-failure
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-chown -R www-data:www-data "$APP_DIR/.next" "$APP_DIR/public" 2>/dev/null || true
+mkdir -p "$APP_DIR/logs"
+chown -R www-data:www-data "$APP_DIR/.next" "$APP_DIR/public" "$APP_DIR/logs" 2>/dev/null || true
 chown www-data:www-data "$ENV_FILE"
 
-systemctl daemon-reload
-systemctl enable "$SERVICE_NAME"
-systemctl restart "$SERVICE_NAME"
+# Sync PORT in .env.production with APP_PORT
+if grep -q '^PORT=' "$ENV_FILE"; then
+  sed -i.bak "s/^PORT=.*/PORT=${APP_PORT}/" "$ENV_FILE" && rm -f "${ENV_FILE}.bak"
+else
+  echo "PORT=${APP_PORT}" >>"$ENV_FILE"
+fi
+
+# Disable legacy systemd unit if present
+systemctl stop "$SERVICE_NAME" 2>/dev/null || true
+systemctl disable "$SERVICE_NAME" 2>/dev/null || true
+
+export APP_DIR APP_PORT
+cd "$APP_DIR"
+pm2 delete "$SERVICE_NAME" 2>/dev/null || true
+pm2 start ecosystem.config.cjs --env production --update-env
+pm2 save
+
 sleep 2
-systemctl is-active --quiet "$SERVICE_NAME" || {
-  journalctl -u "$SERVICE_NAME" -n 40 --no-pager
-  die "Service $SERVICE_NAME failed to start"
+pm2 describe "$SERVICE_NAME" | grep -q online || {
+  pm2 logs "$SERVICE_NAME" --lines 40 --nostream
+  die "PM2 app $SERVICE_NAME is not online"
 }
-log "systemd: $SERVICE_NAME is running on 127.0.0.1:${APP_PORT}"
+log "PM2: $SERVICE_NAME is running on 127.0.0.1:${APP_PORT}"
+
+if ! systemctl is-enabled pm2-root >/dev/null 2>&1 && ! systemctl is-enabled "pm2-$(whoami)" >/dev/null 2>&1; then
+  log "Run once to start PM2 on boot (copy the command PM2 prints):"
+  pm2 startup systemd -u root --hp /root 2>/dev/null || pm2 startup 2>/dev/null || true
+fi
 
 # --- Apache reverse proxy ---
 for mod in proxy proxy_http proxy_wstunnel rewrite headers ssl; do
@@ -187,6 +185,6 @@ log ""
 log "HTTPS (recommended after DNS works):"
 log "  certbot --apache -d ${DOMAIN}"
 log ""
-log "Status: systemctl status ${SERVICE_NAME}"
-log "Logs:   journalctl -u ${SERVICE_NAME} -f"
+log "Status: pm2 status ${SERVICE_NAME}"
+log "Logs:   pm2 logs ${SERVICE_NAME}"
 log "Done."

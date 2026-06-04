@@ -1,22 +1,6 @@
-# Reference systemd unit — deploy.sh installs /etc/systemd/system/socity.service
-
-[Unit]
-Description=Socity Next.js app (socity.katharostechie.in)
-After=network.target mongod.service
-Wants=mongod.service
-
-[Service]
-Type=simple
-User=www-data
-Group=www-data
-WorkingDirectory=/var/www/socity/.next/standalone
-EnvironmentFile=/var/www/socity/.env.production
-Environment=NODE_ENV=production
-Environment=PORT=3000
-Environment=HOSTNAME=127.0.0.1
-ExecStart=/usr/bin/node server.js
-Restart=on-failure
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
+# Legacy systemd unit (replaced by PM2 + ecosystem.config.cjs)
+# deploy.sh disables this service if it was installed earlier.
+#
+# Use PM2 instead:
+#   pm2 start /var/www/socity/ecosystem.config.cjs --env production
+#   pm2 save && pm2 startup
