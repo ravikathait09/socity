@@ -1,5 +1,4 @@
 import Unit from "@/models/Unit";
-import MeterReading from "@/models/MeterReading";
 import Expense from "@/models/Expense";
 import Bill from "@/models/Bill";
 import Society from "@/models/Society";
@@ -14,9 +13,8 @@ import {
 
 // Core billing engine.
 // For a given society + period, generate one bill per unit with these heads:
-//   powerCharge   = meter units * ratePerUnit
 //   commonCharge  = pro-rated share of approved common expenses
-//   serviceCharge = flat per-unit service/maintenance charge (MOFA)
+//   serviceCharge = monthly maintenance charge (flat fee, per-sqft, or override)
 //   sinkingFund   = carpet area * sinking-fund rate (MOFA, per sq.ft)
 //   repairFund    = carpet area * repair-fund rate (MOFA, per sq.ft)
 //   waterCharge   = water inlets * per-inlet rate (MOFA)
@@ -31,11 +29,15 @@ import {
 //
 // scopeBlocks (optional): a tower-scoped user only writes their towers' bills,
 // but every expense share is still computed over ALL units so amounts stay right.
-export async function generateBills(societyId, period, scopeBlocks = null) {
+// opts.force: when true, recompute UNPAID existing bills (e.g. to pick up a
+// newly-approved expense). Bills with any payment are ALWAYS left untouched, and
+// without force existing bills are never changed — so editing MOFA settings can
+// never alter previously generated bills.
+export async function generateBills(societyId, period, scopeBlocks = null, opts = {}) {
+  const force = !!opts.force;
   const society = await Society.findById(societyId).lean();
   const cfg = society?.settings || {};
   const graceDays = cfg.graceDays ?? 15;
-  const fallbackRate = cfg.defaultElectricityRate ?? 0;
 
   const units = await Unit.find({ societyId }).lean();
   if (units.length === 0) {
@@ -43,9 +45,6 @@ export async function generateBills(societyId, period, scopeBlocks = null) {
   }
   const scoped = Array.isArray(scopeBlocks) && scopeBlocks.length > 0;
   const billable = scoped ? units.filter((u) => scopeBlocks.includes(u.blockCode)) : units;
-
-  const readings = await MeterReading.find({ societyId, period }).lean();
-  const readingByUnit = new Map(readings.map((r) => [String(r.unitId), r]));
 
   const expenses = await Expense.find({
     societyId,
@@ -96,17 +95,29 @@ export async function generateBills(societyId, period, scopeBlocks = null) {
   const prevByUnit = new Map(prevBills.map((b) => [String(b.unitId), b]));
 
   let created = 0;
+  let kept = 0; // existing bills left untouched
+  let locked = 0; // settled bills never recomputed
   for (const u of billable) {
-    const reading = readingByUnit.get(String(u._id));
-    const powerUnits = reading ? reading.units : 0;
-    const rate = reading ? reading.ratePerUnit || fallbackRate : 0;
-    const powerCharge = reading ? round(reading.units * rate) : 0;
+    // Freeze existing bills so changing settings can't alter past billing.
+    const existing = await Bill.findOne({ societyId, unitId: u._id, period }).lean();
+    if (existing) {
+      if ((existing.paid || 0) > 0) { locked++; continue; } // settled → always frozen
+      if (!force) { kept++; continue; } // unpaid but not forcing → leave as-is
+    }
 
     const common = commonByUnit.get(String(u._id)) || { amount: 0, items: [] };
     const commonCharge = round(common.amount);
 
     // MOFA bye-law heads.
-    const serviceCharge = round(cfg.serviceChargePerFlat || 0);
+    // Monthly maintenance / service charge: per-unit override > per-sqft > flat fee.
+    let serviceCharge;
+    if (u.monthlyMaintenance != null && u.monthlyMaintenance > 0) {
+      serviceCharge = round(u.monthlyMaintenance);
+    } else if (cfg.maintenanceBasis === "sqft") {
+      serviceCharge = round((u.areaSqft || 0) * (cfg.serviceChargePerSqft || 0));
+    } else {
+      serviceCharge = round(cfg.serviceChargePerFlat || 0);
+    }
     const sinkingFund = round((u.areaSqft || 0) * (cfg.sinkingFundRatePerSqft || 0));
     const repairFund = round((u.areaSqft || 0) * (cfg.repairFundRatePerSqft || 0));
     const waterCharge = round((u.waterInlets || 1) * (cfg.waterChargePerInlet || 0));
@@ -125,10 +136,8 @@ export async function generateBills(societyId, period, scopeBlocks = null) {
         : 0;
 
     const lineItems = [];
-    if (powerCharge > 0)
-      lineItems.push({ label: `Electricity — ${powerUnits} units`, amount: powerCharge });
     lineItems.push(...common.items);
-    if (serviceCharge > 0) lineItems.push({ label: "Service charge", amount: serviceCharge });
+    if (serviceCharge > 0) lineItems.push({ label: "Maintenance charge", amount: serviceCharge });
     if (sinkingFund > 0) lineItems.push({ label: "Sinking fund", amount: sinkingFund });
     if (repairFund > 0) lineItems.push({ label: "Repair fund", amount: repairFund });
     if (waterCharge > 0) lineItems.push({ label: "Water charges", amount: waterCharge });
@@ -136,11 +145,10 @@ export async function generateBills(societyId, period, scopeBlocks = null) {
     if (interest > 0) lineItems.push({ label: "Interest on arrears", amount: interest });
 
     const charges = round(
-      powerCharge + commonCharge + serviceCharge + sinkingFund + repairFund + waterCharge + gst + interest
+      commonCharge + serviceCharge + sinkingFund + repairFund + waterCharge + gst + interest
     );
 
-    // Preserve any penalty/payment already on an existing bill for this period.
-    const existing = await Bill.findOne({ societyId, unitId: u._id, period }).lean();
+    // Preserve any penalty already on the (unpaid) existing bill for this period.
     const penalty = existing?.penalty || 0;
     const paid = existing?.paid || 0;
     const dueDate = existing?.dueDate || dueDateForPeriod(period, graceDays);
@@ -152,8 +160,8 @@ export async function generateBills(societyId, period, scopeBlocks = null) {
       unitNumber: u.number,
       blockCode: u.blockCode,
       period,
-      powerUnits,
-      powerCharge,
+      powerUnits: 0,
+      powerCharge: 0,
       commonCharge,
       serviceCharge,
       sinkingFund,
@@ -177,5 +185,5 @@ export async function generateBills(societyId, period, scopeBlocks = null) {
     created++;
   }
 
-  return { created, expenses: expenses.length, units: billable.length };
+  return { created, kept, locked, expenses: expenses.length, units: billable.length };
 }

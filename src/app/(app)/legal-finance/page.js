@@ -9,7 +9,7 @@ export default function LegalFinancePage() {
   const [entities, setEntities] = useState([]);
   const [loans, setLoans] = useState([]);
   const [err, setErr] = useState("");
-  const [ef, setEf] = useState({ name: "", kind: "block-group", blockCodes: "", description: "" });
+  const [ef, setEf] = useState({ name: "", kind: "society", blockCodes: "", description: "" });
   const [lf, setLf] = useState({ legalEntityId: "", purpose: "", lender: "", principal: "", annualRate: "", tenureMonths: "" });
 
   async function load() {
@@ -34,7 +34,7 @@ export default function LegalFinancePage() {
     });
     const d = await res.json();
     if (!res.ok) return setErr(d.error || "Failed");
-    setEf({ name: "", kind: "block-group", blockCodes: "", description: "" });
+    setEf({ name: "", kind: "society", blockCodes: "", description: "" });
     load();
   }
 
@@ -70,7 +70,7 @@ export default function LegalFinancePage() {
       <div>
         <h1 className="text-2xl font-semibold">Legal entity & finance</h1>
         <p className="text-sm text-slate-500">
-          Block groups (A+B, C+D, E) as independent legal entities that hold funds and take loans.
+          Legal entities (the society or a specific tower) that hold funds and take loans.
         </p>
       </div>
       {err && <p className="text-sm text-red-600">{err}</p>}
@@ -83,7 +83,7 @@ export default function LegalFinancePage() {
             <div key={e._id} className="card p-4">
               <div className="flex items-center justify-between">
                 <div className="font-medium">{e.name}</div>
-                <span className="badge bg-slate-100 text-slate-600">{e.kind}</span>
+                <span className="badge bg-slate-100 text-slate-600">{e.kind === "society" ? "society" : "tower(s)"}</span>
               </div>
               <div className="mt-1 text-xs text-slate-500">
                 {e.blockCodes?.length ? `Blocks: ${e.blockCodes.join(", ")}` : "—"}
@@ -95,10 +95,10 @@ export default function LegalFinancePage() {
             <input className="input" placeholder="Entity name (e.g. Greenwood A+B Assoc.)" value={ef.name} onChange={(e) => setEf({ ...ef, name: e.target.value })} />
             <div className="flex gap-2">
               <select className="input" value={ef.kind} onChange={(e) => setEf({ ...ef, kind: e.target.value })}>
-                <option value="block-group">Block group</option>
-                <option value="society">Society</option>
+                <option value="society">Whole society</option>
+                <option value="block-group">Specific tower(s)</option>
               </select>
-              <input className="input" placeholder="Blocks (A,B)" value={ef.blockCodes} onChange={(e) => setEf({ ...ef, blockCodes: e.target.value })} />
+              <input className="input" placeholder="Tower(s) e.g. A or A,B" value={ef.blockCodes} onChange={(e) => setEf({ ...ef, blockCodes: e.target.value })} />
             </div>
             <button className="btn-primary w-full">Add entity</button>
           </form>

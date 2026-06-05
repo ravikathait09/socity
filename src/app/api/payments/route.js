@@ -1,4 +1,4 @@
-import { authorize, requireSession, tenantFilter, blockScopedFilter, isBlockScoped, ok, bad } from "@/lib/api";
+import { authorize, requireSession, tenantFilter, blockScopedFilter, isBlockScoped, ownedUnitIds, ok, bad } from "@/lib/api";
 import { hasPermission } from "@/lib/rbac";
 import { billStatus, round } from "@/lib/finance";
 import { audit } from "@/lib/audit";
@@ -19,8 +19,9 @@ export async function GET(req) {
     if (!hasPermission(session.permissions, "payments.pay_online"))
       return bad("Forbidden", 403);
     const me = await User.findById(session.uid).lean();
-    if (!me?.unitId) return ok({ payments: [] });
-    filter = tenantFilter(session, { unitId: me.unitId });
+    const ids = ownedUnitIds(me);
+    if (ids.length === 0) return ok({ payments: [] });
+    filter = tenantFilter(session, { unitId: { $in: ids } });
   }
   const payments = await Payment.find(filter).sort({ paidAt: -1 }).lean();
   return ok({ payments });

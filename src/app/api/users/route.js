@@ -1,24 +1,34 @@
 import bcrypt from "bcryptjs";
-import { authorize, tenantFilter, isBlockScoped, ok, bad } from "@/lib/api";
+import { authorize, tenantFilter, isBlockScoped, ownedUnitIds, ok, bad } from "@/lib/api";
 import { audit } from "@/lib/audit";
 import User from "@/models/User";
 import Role from "@/models/Role";
+import Unit from "@/models/Unit";
 import { towerUserFilter, assertAssignableRoles, constrainScope } from "@/lib/userScope";
 
-// Resolve role ids to the names a user holds (for display).
+// Resolve role ids to names + owned flats (for display).
 async function withRoleNames(users, session) {
-  const roles = await Role.find(tenantFilter(session)).lean();
+  const [roles, units] = await Promise.all([
+    Role.find(tenantFilter(session)).lean(),
+    Unit.find(tenantFilter(session)).select("number").lean(),
+  ]);
   const byId = new Map(roles.map((r) => [String(r._id), r.name]));
-  return users.map((u) => ({
-    _id: u._id,
-    name: u.name,
-    email: u.email,
-    active: u.active,
-    unitId: u.unitId,
-    scopeBlocks: u.scopeBlocks || [],
-    roleIds: (u.roleIds || []).map(String),
-    roles: (u.roleIds || []).map((id) => byId.get(String(id))).filter(Boolean),
-  }));
+  const unitNo = new Map(units.map((u) => [String(u._id), u.number]));
+  return users.map((u) => {
+    const ids = ownedUnitIds(u);
+    return {
+      _id: u._id,
+      name: u.name,
+      email: u.email,
+      active: u.active,
+      unitId: u.unitId,
+      unitIds: ids,
+      unitNumbers: ids.map((id) => unitNo.get(id)).filter(Boolean),
+      scopeBlocks: u.scopeBlocks || [],
+      roleIds: (u.roleIds || []).map(String),
+      roles: (u.roleIds || []).map((id) => byId.get(String(id))).filter(Boolean),
+    };
+  });
 }
 
 // List users. Society-wide admins see everyone; a tower admin (block-scoped)
@@ -55,6 +65,7 @@ export async function POST(req) {
       passwordHash: await bcrypt.hash(b.password, 10),
       roleIds: roleCheck.ids,
       unitId: scope.unitId || undefined,
+      unitIds: scope.unitId ? [scope.unitId] : [],
       scopeBlocks: Array.isArray(scope.scopeBlocks) ? scope.scopeBlocks : [],
       active: true,
     });

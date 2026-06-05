@@ -34,7 +34,11 @@ export async function PATCH(req, { params }) {
     const scope = await constrainScope(b, session);
     if (scope.error) return bad(scope.error, 403);
     if (b.scopeBlocks !== undefined) update.scopeBlocks = Array.isArray(scope.scopeBlocks) ? scope.scopeBlocks : [];
-    if (b.unitId !== undefined) update.unitId = scope.unitId || null;
+    if (b.unitId !== undefined) {
+      update.unitId = scope.unitId || null;
+      // keep the multi-flat list in sync with a manual single-flat assignment
+      update.unitIds = scope.unitId ? [scope.unitId] : [];
+    }
   }
 
   if (b.roleIds != null) {

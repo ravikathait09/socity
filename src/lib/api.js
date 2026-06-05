@@ -63,6 +63,14 @@ export function blockScopedFilter(session, extra = {}) {
   return f;
 }
 
+// All unit ids a resident owns/occupies (multi-flat aware). Falls back to the
+// legacy single unitId when unitIds isn't populated.
+export function ownedUnitIds(user) {
+  const ids = (user?.unitIds || []).map(String);
+  if (user?.unitId) ids.push(String(user.unitId));
+  return [...new Set(ids)];
+}
+
 export function ok(data, init) {
   return NextResponse.json(data, init);
 }

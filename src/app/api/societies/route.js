@@ -1,9 +1,8 @@
 import bcrypt from "bcryptjs";
 import { authorize, ok, bad } from "@/lib/api";
 import { audit } from "@/lib/audit";
-import { defaultRolePermissions } from "@/lib/rbac";
+import { applyTemplatesToSociety } from "@/lib/roleTemplates";
 import Society from "@/models/Society";
-import Role from "@/models/Role";
 import User from "@/models/User";
 
 // Platform-level (super admin). NOT tenant-scoped.
@@ -45,20 +44,9 @@ export async function POST(req) {
     blockMode: b.blockMode === "grouped" ? "grouped" : "standalone",
   });
 
-  // seed society-scoped default roles (skip the global platform role)
-  const defs = defaultRolePermissions();
-  const roleByName = {};
-  for (const [name, def] of Object.entries(defs)) {
-    if (def.platform) continue;
-    const role = await Role.create({
-      societyId: society._id,
-      name,
-      description: def.description,
-      permissions: def.permissions,
-      system: true,
-    });
-    roleByName[name] = role;
-  }
+  // seed the society's roles from the platform role templates (global defaults,
+  // editable by the Super admin)
+  const roleByName = await applyTemplatesToSociety(society._id);
 
   const admin = await User.create({
     societyId: society._id,

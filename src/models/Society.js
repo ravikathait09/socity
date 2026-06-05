@@ -25,7 +25,13 @@ const SocietySchema = new mongoose.Schema(
       defaultElectricityRate: { type: Number, default: 9 }, // ₹ per unit fallback
       defaultSplitRule: { type: String, enum: ["equal", "area", "block"], default: "equal" },
       // MOFA bye-law charge heads (per the model bye-laws No. 65–71).
-      serviceChargePerFlat: { type: Number, default: 0 }, // flat service/maintenance charge
+      // Monthly maintenance / service charge. Basis decides how it's computed:
+      //   "flat" -> serviceChargePerFlat (same ₹ for every flat)
+      //   "sqft" -> serviceChargePerSqft × carpet area
+      // A per-unit override (Unit.monthlyMaintenance) beats both when set.
+      maintenanceBasis: { type: String, enum: ["flat", "sqft"], default: "flat" },
+      serviceChargePerFlat: { type: Number, default: 0 }, // flat monthly maintenance per flat
+      serviceChargePerSqft: { type: Number, default: 0 }, // ₹/sq.ft when basis = "sqft"
       sinkingFundRatePerSqft: { type: Number, default: 0 }, // ₹/sq.ft of carpet area
       repairFundRatePerSqft: { type: Number, default: 0 }, // ₹/sq.ft of carpet area
       waterChargePerInlet: { type: Number, default: 0 }, // ₹ per water inlet

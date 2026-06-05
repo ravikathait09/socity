@@ -117,10 +117,16 @@ export default function UsersPage() {
                   </div>
                 </td>
                 <td>
-                  {u.scopeBlocks?.length ? (
+                  {u.unitNumbers?.length ? (
+                    <div className="flex flex-wrap gap-1">
+                      {u.unitNumbers.map((n) => (
+                        <span key={n} className="badge bg-emerald-100 text-emerald-700">{n}</span>
+                      ))}
+                    </div>
+                  ) : u.scopeBlocks?.length ? (
                     <div className="flex flex-wrap gap-1">
                       {u.scopeBlocks.map((c) => (
-                        <span key={c} className="badge bg-indigo-100 text-indigo-700">{c}</span>
+                        <span key={c} className="badge bg-indigo-100 text-indigo-700">Tower {c}</span>
                       ))}
                     </div>
                   ) : (

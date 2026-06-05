@@ -90,13 +90,6 @@ export default function SettingsPage() {
                 {["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"].map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
               </select>
             </div>
-            <div>
-              <label className="label">Block mode</label>
-              <select className="input" value={society.blockMode} onChange={(e) => setField("blockMode", e.target.value)}>
-                <option value="standalone">Standalone</option>
-                <option value="grouped">Grouped</option>
-              </select>
-            </div>
           </div>
         </div>
 
@@ -136,12 +129,26 @@ export default function SettingsPage() {
 
         <div className="card space-y-3 p-5">
           <h2 className="text-sm font-semibold">MOFA charge heads</h2>
-          <p className="text-xs text-slate-500">These flow into every monthly bill as named heads.</p>
+          <p className="text-xs text-slate-500">These flow into every monthly bill as named heads. The maintenance charge is billed to every flat each month.</p>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             <div>
-              <label className="label">Service charge / flat (₹)</label>
-              <input className="input" value={s.serviceChargePerFlat ?? ""} onChange={(e) => setField("settings.serviceChargePerFlat", e.target.value)} />
+              <label className="label">Maintenance basis</label>
+              <select className="input" value={s.maintenanceBasis || "flat"} onChange={(e) => setField("settings.maintenanceBasis", e.target.value)}>
+                <option value="flat">Flat fee / flat</option>
+                <option value="sqft">By carpet area (₹/sq.ft)</option>
+              </select>
             </div>
+            {(s.maintenanceBasis || "flat") === "sqft" ? (
+              <div>
+                <label className="label">Maintenance ₹/sq.ft</label>
+                <input className="input" value={s.serviceChargePerSqft ?? ""} onChange={(e) => setField("settings.serviceChargePerSqft", e.target.value)} />
+              </div>
+            ) : (
+              <div>
+                <label className="label">Maintenance ₹/flat / month</label>
+                <input className="input" value={s.serviceChargePerFlat ?? ""} onChange={(e) => setField("settings.serviceChargePerFlat", e.target.value)} />
+              </div>
+            )}
             <div>
               <label className="label">Sinking fund (₹/sq.ft)</label>
               <input className="input" value={s.sinkingFundRatePerSqft ?? ""} onChange={(e) => setField("settings.sinkingFundRatePerSqft", e.target.value)} />

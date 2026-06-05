@@ -1,4 +1,4 @@
-import { authorize, requireSession, tenantFilter, blockScopedFilter, ok, bad } from "@/lib/api";
+import { authorize, requireSession, tenantFilter, blockScopedFilter, ownedUnitIds, ok, bad } from "@/lib/api";
 import { hasPermission } from "@/lib/rbac";
 import Bill from "@/models/Bill";
 import User from "@/models/User";
@@ -20,8 +20,9 @@ export async function GET(req) {
     if (!hasPermission(session.permissions, "billing.view_own"))
       return bad("Forbidden", 403);
     const me = await User.findById(session.uid).lean();
-    if (!me?.unitId) return ok({ bills: [] });
-    filter = tenantFilter(session, { unitId: me.unitId, ...(period ? { period } : {}) });
+    const ids = ownedUnitIds(me);
+    if (ids.length === 0) return ok({ bills: [] });
+    filter = tenantFilter(session, { unitId: { $in: ids }, ...(period ? { period } : {}) });
   }
 
   const bills = await Bill.find(filter).sort({ period: -1, unitNumber: 1 }).lean();

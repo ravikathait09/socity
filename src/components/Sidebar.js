@@ -8,7 +8,6 @@ import { hasPermission } from "@/lib/rbac";
 const NAV = [
   { href: "/dashboard", label: "Dashboard", perm: "reports.dashboard", icon: "▦" },
   { href: "/units", label: "Units & blocks", perm: "units.view", icon: "▣" },
-  { href: "/meter-readings", label: "Meter readings", perm: "power.meter_readings", icon: "⚡" },
   { href: "/expenses", label: "Expenses", perm: "expenses.add", icon: "₹" },
   { href: "/expense-categories", label: "Expense categories", perm: "expenses.categories", icon: "🏷" },
   { href: "/approvals", label: "Approvals", perm: "requests.raise", icon: "✅" },
@@ -22,7 +21,7 @@ const NAV = [
   { href: "/notices", label: "Notice board", perm: null, icon: "📢" },
   { href: "/minutes", label: "Meeting minutes", perm: "admin.minutes", icon: "📝" },
   { href: "/documents", label: "Documents", perm: "admin.documents", icon: "📁" },
-  { href: "/my-bills", label: "My bills", perm: "billing.view_own", icon: "📄" },
+  { href: "/my-bills", label: "My account", perm: "billing.view_own", icon: "📄" },
   { href: "/admin/users", label: "Users", perm: "admin.users", icon: "👥" },
   { href: "/admin/roles", label: "Roles & access", perm: "admin.roles", icon: "🛡" },
   { href: "/admin/settings", label: "Society settings", perm: "admin.settings", icon: "⚙️" },
@@ -35,6 +34,7 @@ const NAV = [
 const PLATFORM_NAV = [
   { href: "/platform/dashboard", label: "Dashboard", perm: "platform.onboard", icon: "▦" },
   { href: "/platform", label: "Societies", perm: "platform.onboard", icon: "🏢" },
+  { href: "/platform/role-templates", label: "Role templates", perm: "platform.onboard", icon: "🛡" },
 ];
 
 export default function Sidebar({ permissions, societyName, isPlatform = false }) {

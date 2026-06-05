@@ -2,6 +2,7 @@ import { requireSession, tenantFilter, isBlockScoped, ok, bad } from "@/lib/api"
 import { hasPermission, hasAny } from "@/lib/rbac";
 import { audit } from "@/lib/audit";
 import Expense from "@/models/Expense";
+import ExpenseCategory from "@/models/ExpenseCategory";
 
 const MAX_INLINE_BYTES = 1.5 * 1024 * 1024;
 
@@ -38,6 +39,13 @@ export async function POST(req) {
 
   const b = await req.json().catch(() => ({}));
   if (!b.period || !b.amount) return bad("period and amount are required");
+
+  // Every expense must be tagged with a category from the master.
+  if (!b.categoryCode) return bad("An expense category is required");
+  const cat = await ExpenseCategory.findOne(
+    tenantFilter(session, { code: b.categoryCode, active: true })
+  ).lean();
+  if (!cat) return bad("Choose a valid (active) expense category");
 
   // Allocation tagging (Module 3): "all" towers vs "specific" tower(s).
   let allocationType = b.allocationType === "specific" ? "specific" : "all";
@@ -76,8 +84,8 @@ export async function POST(req) {
   const expense = await Expense.create({
     societyId: session.societyId,
     period: b.period,
-    category: b.category,
-    categoryCode: b.categoryCode,
+    category: cat.name,
+    categoryCode: cat.code,
     description: b.description,
     amount: Number(b.amount),
     gstAmount: Number(b.gstAmount) || 0,

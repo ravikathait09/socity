@@ -9,7 +9,6 @@ import User from "../src/models/User.js";
 import Block from "../src/models/Block.js";
 import Unit from "../src/models/Unit.js";
 import Expense from "../src/models/Expense.js";
-import MeterReading from "../src/models/MeterReading.js";
 import Bill from "../src/models/Bill.js";
 import Payment from "../src/models/Payment.js";
 import LegalEntity from "../src/models/LegalEntity.js";
@@ -45,7 +44,6 @@ async function run() {
       Block.deleteMany({ societyId: sid }),
       Unit.deleteMany({ societyId: sid }),
       Expense.deleteMany({ societyId: sid }),
-      MeterReading.deleteMany({ societyId: sid }),
       Bill.deleteMany({ societyId: sid }),
       Payment.deleteMany({ societyId: sid }),
       LegalEntity.deleteMany({ societyId: sid }),
@@ -193,24 +191,7 @@ async function run() {
     ]);
   }
 
-  // 7) Meter readings for both periods (rate ₹9/unit)
-  for (const period of [PREV_PERIOD, PERIOD]) {
-    for (const u of units) {
-      const prev = 1000;
-      const consumed = 80 + ((u.number.charCodeAt(2) + u.number.charCodeAt(4)) % 60);
-      await MeterReading.create({
-        societyId: society._id,
-        unitId: u._id,
-        blockCode: u.blockCode,
-        period,
-        previous: prev,
-        current: prev + consumed,
-        units: consumed,
-        ratePerUnit: 9,
-      });
-    }
-  }
-  console.log("Seeded expenses + meter readings for", PREV_PERIOD, "and", PERIOD);
+  console.log("Seeded expenses for", PREV_PERIOD, "and", PERIOD);
 
   // 8) Legal entities (block groups) + a sample loan
   const abEntity = await LegalEntity.create({

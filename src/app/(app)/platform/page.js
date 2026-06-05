@@ -35,6 +35,13 @@ export default function PlatformPage() {
     load();
   }
 
+  async function syncRoles(s) {
+    if (!confirm(`Re-apply the latest role templates to ${s.name}? Its users will need to sign in again.`)) return;
+    const res = await fetch(`/api/societies/${s._id}/sync-roles`, { method: "POST" });
+    const d = await res.json();
+    alert(res.ok ? `Synced roles: ${d.roles.join(", ")}` : (d.error || "Failed"));
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -67,6 +74,7 @@ export default function PlatformPage() {
                 <td className="pr-4 text-right">
                   <div className="flex justify-end gap-2">
                     <button className="btn-ghost text-xs" onClick={() => setEditId(s._id)}>Configure</button>
+                    <button className="btn-ghost text-xs" onClick={() => syncRoles(s)}>Sync roles</button>
                     <button className="btn-ghost text-xs text-red-600" onClick={() => toggleActive(s)}>{s.active ? "Suspend" : "Activate"}</button>
                   </div>
                 </td>
@@ -82,10 +90,6 @@ export default function PlatformPage() {
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
           <input className="input" placeholder="Society name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           <input className="input" placeholder="City" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
-          <select className="input" value={form.blockMode} onChange={(e) => setForm({ ...form, blockMode: e.target.value })}>
-            <option value="standalone">Standalone blocks</option>
-            <option value="grouped">Grouped blocks</option>
-          </select>
           <input className="input" placeholder="Registration no. (MCS Act)" value={form.registrationNo} onChange={(e) => setForm({ ...form, registrationNo: e.target.value })} />
           <input className="input" placeholder="Ward / zone" value={form.ward} onChange={(e) => setForm({ ...form, ward: e.target.value })} />
         </div>

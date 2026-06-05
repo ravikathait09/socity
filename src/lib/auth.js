@@ -10,6 +10,12 @@ const secret = new TextEncoder().encode(
 );
 
 const isProd = process.env.NODE_ENV === "production";
+// Secure cookies are only stored by the browser over HTTPS. Default to prod, but
+// allow an explicit override so the app can run behind plain HTTP during setup:
+//   COOKIE_SECURE=false  -> cookie works over http:// (NOT for real production)
+//   COOKIE_SECURE=true   -> force Secure even in dev
+const cookieSecure =
+  process.env.COOKIE_SECURE != null ? process.env.COOKIE_SECURE === "true" : isProd;
 export const COOKIE_NAME = "socity_token";
 
 // Sign a session token. The payload embeds societyId + permissions so tenant
@@ -44,7 +50,7 @@ export async function setSessionCookie(token) {
   store.set(COOKIE_NAME, token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: isProd, // only sent over HTTPS in production
+    secure: cookieSecure, // Secure cookies need HTTPS (override with COOKIE_SECURE)
     path: "/",
     maxAge: 60 * 60 * 24 * 7,
   });

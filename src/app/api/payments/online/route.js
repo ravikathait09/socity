@@ -1,4 +1,4 @@
-import { authorize, tenantFilter, ok, bad } from "@/lib/api";
+import { authorize, tenantFilter, ownedUnitIds, ok, bad } from "@/lib/api";
 import { billStatus, round } from "@/lib/finance";
 import { audit } from "@/lib/audit";
 import Payment from "@/models/Payment";
@@ -15,11 +15,12 @@ export async function POST(req) {
   if (!billId) return bad("billId is required");
 
   const me = await User.findById(session.uid).lean();
-  if (!me?.unitId) return bad("No unit linked to your account", 400);
+  const ids = ownedUnitIds(me);
+  if (ids.length === 0) return bad("No unit linked to your account", 400);
 
-  // Must be the resident's own unit's bill — tenant + ownership scoped.
+  // Must be one of the resident's own flats' bills — tenant + ownership scoped.
   const bill = await Bill.findOne(
-    tenantFilter(session, { _id: billId, unitId: me.unitId })
+    tenantFilter(session, { _id: billId, unitId: { $in: ids } })
   );
   if (!bill) return bad("Bill not found", 404);
 

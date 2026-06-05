@@ -38,6 +38,7 @@ export async function POST(req) {
       areaSqft: body.areaSqft,
       bhk: body.bhk,
       waterInlets: body.waterInlets ?? 1,
+      monthlyMaintenance: body.monthlyMaintenance ? Number(body.monthlyMaintenance) : undefined,
       ownerName: body.ownerName,
       ownerPhone: body.ownerPhone,
       ownerEmail: body.ownerEmail,

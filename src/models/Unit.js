@@ -11,6 +11,9 @@ const UnitSchema = new mongoose.Schema(
     areaSqft: Number, // carpet area
     bhk: String, // "1BHK", "2BHK", "3BHK", ...
     waterInlets: { type: Number, default: 1 }, // drives MOFA water charge
+    // Optional per-flat monthly maintenance override (e.g. shops or custom deals).
+    // When set (> 0) it replaces the society-wide maintenance computation.
+    monthlyMaintenance: Number,
     ownerName: String,
     ownerPhone: String,
     ownerEmail: String,
