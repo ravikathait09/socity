@@ -23,6 +23,8 @@ export async function issueSession(user) {
     permissions,
     permVersion: user.permVersion || 1,
     scopeBlocks: user.scopeBlocks || [],
+    // whether this user is linked to a flat (drives the "My account" nav)
+    hasUnit: !!(user.unitId || (user.unitIds && user.unitIds.length)),
   });
   await setSessionCookie(token);
 

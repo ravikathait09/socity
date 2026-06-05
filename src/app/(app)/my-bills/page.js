@@ -20,8 +20,8 @@ export default function MyBillsPage() {
   const [msg, setMsg] = useState("");
 
   function load() {
-    fetch("/api/bills").then((r) => r.json()).then((d) => (d.error ? setErr(d.error) : setBills(d.bills || [])));
-    fetch("/api/payments").then((r) => r.json()).then((d) => d.payments && setPayments(d.payments));
+    fetch("/api/bills?mine=1").then((r) => r.json()).then((d) => (d.error ? setErr(d.error) : setBills(d.bills || [])));
+    fetch("/api/payments?mine=1").then((r) => r.json()).then((d) => d.payments && setPayments(d.payments));
     fetch("/api/my-unit").then((r) => r.json()).then((d) => d.units && setUnits(d.units)).catch(() => {});
   }
   useEffect(() => { load(); }, []);

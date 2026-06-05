@@ -11,7 +11,18 @@ import User from "@/models/User";
 export async function GET(req) {
   const session = await requireSession();
   if (!session) return bad("Unauthenticated", 401);
-  const period = new URL(req.url).searchParams.get("period");
+  const url = new URL(req.url);
+  const period = url.searchParams.get("period");
+
+  // "mine" — always scope to the caller's own flat(s), regardless of role.
+  if (url.searchParams.get("mine")) {
+    const me = await User.findById(session.uid).lean();
+    const ids = ownedUnitIds(me);
+    if (ids.length === 0) return ok({ payments: [] });
+    const f = tenantFilter(session, { unitId: { $in: ids } });
+    const payments = await Payment.find(f).sort({ paidAt: -1 }).lean();
+    return ok({ payments });
+  }
 
   const canSeeAll = hasPermission(session.permissions, "payments.record");
   let filter = blockScopedFilter(session, period ? { period } : {});

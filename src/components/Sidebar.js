@@ -21,7 +21,7 @@ const NAV = [
   { href: "/notices", label: "Notice board", perm: null, icon: "📢" },
   { href: "/minutes", label: "Meeting minutes", perm: "admin.minutes", icon: "📝" },
   { href: "/documents", label: "Documents", perm: "admin.documents", icon: "📁" },
-  { href: "/my-bills", label: "My account", perm: "billing.view_own", icon: "📄" },
+  { href: "/my-bills", label: "My account", perm: "billing.view_own", icon: "📄", requiresUnit: true },
   { href: "/admin/users", label: "Users", perm: "admin.users", icon: "👥" },
   { href: "/admin/roles", label: "Roles & access", perm: "admin.roles", icon: "🛡" },
   { href: "/admin/settings", label: "Society settings", perm: "admin.settings", icon: "⚙️" },
@@ -37,10 +37,12 @@ const PLATFORM_NAV = [
   { href: "/platform/role-templates", label: "Role templates", perm: "platform.onboard", icon: "🛡" },
 ];
 
-export default function Sidebar({ permissions, societyName, isPlatform = false }) {
+export default function Sidebar({ permissions, societyName, isPlatform = false, hasUnit = false }) {
   const pathname = usePathname();
   const source = isPlatform ? PLATFORM_NAV : NAV;
-  const items = source.filter((n) => n.perm === null || hasPermission(permissions, n.perm));
+  const items = source.filter(
+    (n) => (n.perm === null || hasPermission(permissions, n.perm)) && (!n.requiresUnit || hasUnit)
+  );
 
   return (
     <aside className="hidden w-60 shrink-0 flex-col border-r border-slate-200 bg-white md:flex">

@@ -13,6 +13,7 @@ export default async function AppLayout({ children }) {
         permissions={session.permissions}
         societyName={session.societyName || "Platform"}
         isPlatform={!session.societyId}
+        hasUnit={!!session.hasUnit}
       />
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar

@@ -313,14 +313,6 @@ export default function UnitsPage() {
               ))}
             </select>
           </div>
-          <div className="col-span-2">
-            <label className="label">Owner</label>
-            <input className="input" value={form.ownerName} onChange={(e) => setForm({ ...form, ownerName: e.target.value })} />
-          </div>
-          <div>
-            <label className="label">Owner phone</label>
-            <input className="input" value={form.ownerPhone} onChange={(e) => setForm({ ...form, ownerPhone: e.target.value })} />
-          </div>
           <div>
             <label className="label">Area (sqft)</label>
             <input className="input" value={form.areaSqft} onChange={(e) => setForm({ ...form, areaSqft: e.target.value })} />
@@ -347,9 +339,10 @@ export default function UnitsPage() {
             <label className="label">Meter no.</label>
             <input className="input" value={form.meterNo} onChange={(e) => setForm({ ...form, meterNo: e.target.value })} />
           </div>
-          <div className="col-span-2 md:col-span-6">
+          <div className="col-span-2 md:col-span-6 flex items-center gap-3">
             <button className="btn-primary">Add unit</button>
-            {err && <span className="ml-3 text-sm text-red-600">{err}</span>}
+            <span className="text-xs text-slate-400">Owners are assigned via “Import owners (CSV)” above — that also creates their login.</span>
+            {err && <span className="text-sm text-red-600">{err}</span>}
           </div>
         </form>
       )}
