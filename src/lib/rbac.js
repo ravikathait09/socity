@@ -164,8 +164,8 @@ export const DEFAULT_ROLES = {
   },
   "Tower Admin": {
     system: true,
-    description: "Single-tower administrator. Manages their tower's units, expenses, complaints, notices and users (set the tower via the user's scope).",
-    levels: [F,F,F,F,_, F,F,_,_,F,F, _,_,_,F,_, F,F,_,F, F,F,F,_, _,F,_,_,_,_, _, _, F,_,_,F, F,_,_,_,_, _,_, F],
+    description: "Single-tower administrator. Manages their tower's units, expenses, billing, payments/dues, complaints, notices and users (set the tower via the user's scope).",
+    levels: [F,F,F,F,_, F,F,_,_,F,F, F,F,F,F,_, F,F,_,F, F,F,F,_, _,F,_,_,_,_, _, F, F,_,_,F, F,_,_,_,_, _,_, F],
   },
   Treasurer: {
     system: true,
