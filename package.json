@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "seed": "node --env-file=.env.local scripts/seed.mjs",
+    "sync-roles": "node --env-file=.env.local scripts/sync-roles.mjs",
     "test": "vitest run"
   },
   "dependencies": {
