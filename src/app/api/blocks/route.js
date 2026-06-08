@@ -1,11 +1,14 @@
-import { authorize, tenantFilter, ok, bad } from "@/lib/api";
+import { authorize, tenantFilter, isBlockScoped, ok, bad } from "@/lib/api";
 import Block from "@/models/Block";
 import Unit from "@/models/Unit";
 
 export async function GET() {
   const guard = await authorize("units.view");
   if (guard.error) return guard.error;
-  const blocks = await Block.find(tenantFilter(guard.session)).sort({ code: 1 }).lean();
+  // tower-scoped users (Tower Admins) only see their own tower(s)
+  const filter = tenantFilter(guard.session);
+  if (isBlockScoped(guard.session)) filter.code = { $in: guard.session.scopeBlocks };
+  const blocks = await Block.find(filter).sort({ code: 1 }).lean();
   // attach live unit counts
   for (const b of blocks) {
     b.unitCount = await Unit.countDocuments(

@@ -122,7 +122,13 @@ export default function ExpenseCategoriesPage() {
               <tr key={c._id} className="border-t border-slate-100">
                 <td className="px-4 py-2 font-medium">{c.name}{c.parentCode && <span className="ml-1 text-xs text-slate-400">↳ {c.parentCode}</span>}</td>
                 <td className="font-mono text-xs">{c.code}</td>
-                <td>{c.allocationType}</td>
+                <td>
+                  <select className="input h-8 text-xs" value={c.allocationType} onChange={(e) => patch(c._id, { allocationType: e.target.value })}>
+                    <option value="all">All towers</option>
+                    <option value="specific">Tower-specific</option>
+                    <option value="both">Both</option>
+                  </select>
+                </td>
                 <td className="text-slate-500">{c.budgetHead || "—"}</td>
                 <td>{c.gstApplicable ? "Yes" : "—"}</td>
                 <td>{c.requiresApproval ? `L${c.approvalLevel}` : "none"}</td>

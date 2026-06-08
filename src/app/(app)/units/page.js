@@ -6,6 +6,7 @@ export default function UnitsPage() {
   const [units, setUnits] = useState([]);
   const [blocks, setBlocks] = useState([]);
   const [perms, setPerms] = useState([]);
+  const [scopeBlocks, setScopeBlocks] = useState([]);
   const [err, setErr] = useState("");
   const [form, setForm] = useState({ number: "", blockId: "", ownerName: "", ownerPhone: "", areaSqft: "", bhk: "", waterInlets: 1, monthlyMaintenance: "", meterNo: "", occupancy: "owner" });
   const [filterBlock, setFilterBlock] = useState("");
@@ -32,7 +33,7 @@ export default function UnitsPage() {
     ]);
     if (u.units) setUnits(u.units);
     if (b.blocks) setBlocks(b.blocks);
-    if (me.session) setPerms(me.session.permissions || []);
+    if (me.session) { setPerms(me.session.permissions || []); setScopeBlocks(me.session.scopeBlocks || []); }
   }
   useEffect(() => {
     load();
@@ -225,6 +226,21 @@ export default function UnitsPage() {
         </div>
       )}
 
+      {/* Per-tower MOFA charge overrides */}
+      {hasPermission(perms, "units.edit") && (() => {
+        const myTowers = scopeBlocks.length ? blocks.filter((b) => scopeBlocks.includes(b.code)) : blocks;
+        return (
+          <div className="card p-4">
+            <h2 className="text-sm font-semibold">Tower charge overrides (MOFA)</h2>
+            <p className="mb-2 text-xs text-slate-500">Set different maintenance / fund / water rates for a tower. Blank fields fall back to the society default. Per-flat overrides still win.</p>
+            <div className="space-y-2">
+              {myTowers.map((b) => <TowerMofa key={b._id} block={b} onSaved={load} />)}
+              {myTowers.length === 0 && <p className="text-sm text-slate-400">No towers in your scope.</p>}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Towers / blocks */}
       {canConfig ? (
         <div className="card space-y-3 p-4">
@@ -386,6 +402,74 @@ export default function UnitsPage() {
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+// Per-tower MOFA override editor (Society admin: any tower; Tower Admin: own).
+function TowerMofa({ block, onSaved }) {
+  const s0 = block.settings || {};
+  const [on, setOn] = useState(!!block.mofaOverride);
+  const [f, setF] = useState({
+    maintenanceBasis: s0.maintenanceBasis || "flat",
+    serviceChargePerFlat: s0.serviceChargePerFlat ?? "",
+    serviceChargePerSqft: s0.serviceChargePerSqft ?? "",
+    sinkingFundRatePerSqft: s0.sinkingFundRatePerSqft ?? "",
+    repairFundRatePerSqft: s0.repairFundRatePerSqft ?? "",
+    waterChargePerInlet: s0.waterChargePerInlet ?? "",
+  });
+  const [msg, setMsg] = useState("");
+  const [open, setOpen] = useState(false);
+
+  async function save() {
+    setMsg("");
+    const res = await fetch(`/api/blocks/${block._id}/mofa`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mofaOverride: on, settings: f }),
+    });
+    const d = await res.json();
+    setMsg(res.ok ? "Saved." : (d.error || "Failed"));
+    if (res.ok) onSaved?.();
+  }
+
+  return (
+    <div className="rounded-lg border border-slate-100 p-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <span className="font-medium">Tower {block.code}</span>
+          <label className="flex items-center gap-2 text-sm text-slate-600">
+            <input type="checkbox" checked={on} onChange={(e) => setOn(e.target.checked)} /> Override society rates
+          </label>
+        </div>
+        <button className="btn-ghost text-xs" onClick={() => setOpen((o) => !o)}>{open ? "Close" : "Edit"}</button>
+      </div>
+      {open && on && (
+        <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-3">
+          <div>
+            <label className="label">Maintenance basis</label>
+            <select className="input" value={f.maintenanceBasis} onChange={(e) => setF({ ...f, maintenanceBasis: e.target.value })}>
+              <option value="flat">Flat fee / flat</option>
+              <option value="sqft">By area (₹/sq.ft)</option>
+            </select>
+          </div>
+          {f.maintenanceBasis === "sqft" ? (
+            <div><label className="label">Maintenance ₹/sq.ft</label><input className="input" value={f.serviceChargePerSqft} onChange={(e) => setF({ ...f, serviceChargePerSqft: e.target.value })} /></div>
+          ) : (
+            <div><label className="label">Maintenance ₹/flat</label><input className="input" value={f.serviceChargePerFlat} onChange={(e) => setF({ ...f, serviceChargePerFlat: e.target.value })} /></div>
+          )}
+          <div><label className="label">Sinking ₹/sq.ft</label><input className="input" value={f.sinkingFundRatePerSqft} onChange={(e) => setF({ ...f, sinkingFundRatePerSqft: e.target.value })} /></div>
+          <div><label className="label">Repair ₹/sq.ft</label><input className="input" value={f.repairFundRatePerSqft} onChange={(e) => setF({ ...f, repairFundRatePerSqft: e.target.value })} /></div>
+          <div><label className="label">Water ₹/inlet</label><input className="input" value={f.waterChargePerInlet} onChange={(e) => setF({ ...f, waterChargePerInlet: e.target.value })} /></div>
+        </div>
+      )}
+      {open && (
+        <div className="mt-2 flex items-center gap-3">
+          <button className="btn-primary text-xs" onClick={save}>Save</button>
+          {msg && <span className="text-xs text-green-700">{msg}</span>}
+          {!on && <span className="text-xs text-slate-400">Override off — this tower uses society defaults.</span>}
+        </div>
+      )}
     </div>
   );
 }

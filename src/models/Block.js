@@ -12,6 +12,18 @@ const BlockSchema = new mongoose.Schema(
     mode: { type: String, enum: ["standalone", "grouped"], default: "standalone" },
     groupName: String, // e.g. "A+B"
     unitCount: { type: Number, default: 0 },
+    // Per-tower MOFA charge-head overrides. When mofaOverride is true, billing
+    // uses these instead of the society defaults for this tower's flats. Each
+    // field falls back to the society setting if left null.
+    mofaOverride: { type: Boolean, default: false },
+    settings: {
+      maintenanceBasis: { type: String, enum: ["flat", "sqft", null], default: null },
+      serviceChargePerFlat: { type: Number, default: null },
+      serviceChargePerSqft: { type: Number, default: null },
+      sinkingFundRatePerSqft: { type: Number, default: null },
+      repairFundRatePerSqft: { type: Number, default: null },
+      waterChargePerInlet: { type: Number, default: null },
+    },
   },
   { timestamps: true }
 );

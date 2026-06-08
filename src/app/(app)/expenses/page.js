@@ -98,6 +98,11 @@ export default function ExpensesPage() {
     load();
   }
 
+  // the chosen category drives allocation: "all"/"specific" lock the selector;
+  // "both" (or none) lets the user choose at entry time.
+  const selCat = categories.find((c) => c.code === form.categoryCode);
+  const allocLocked = !!selCat && selCat.allocationType !== "both";
+
   return (
     <div className="space-y-6">
       <div className="flex items-end justify-between">
@@ -134,7 +139,13 @@ export default function ExpensesPage() {
             value={form.categoryCode}
             onChange={(e) => {
               const match = categories.find((c) => c.code === e.target.value);
-              setForm({ ...form, categoryCode: e.target.value, category: match?.name || "" });
+              const next = { ...form, categoryCode: e.target.value, category: match?.name || "" };
+              // apply the category's default allocation (unless it's "both")
+              if (match && match.allocationType && match.allocationType !== "both") {
+                next.allocationType = match.allocationType; // "all" | "specific"
+                if (match.allocationType === "all") next.blockCodes = [];
+              }
+              setForm(next);
             }}
           >
             <option value="">— choose category —</option>
@@ -149,10 +160,12 @@ export default function ExpensesPage() {
         </div>
         <div>
           <label className="label">Applies to</label>
-          <select className="input" value={form.allocationType} onChange={(e) => setForm({ ...form, allocationType: e.target.value })}>
+          <select className="input" value={form.allocationType} disabled={allocLocked}
+            onChange={(e) => setForm({ ...form, allocationType: e.target.value, blockCodes: e.target.value === "all" ? [] : form.blockCodes })}>
             <option value="all">All towers (common)</option>
             <option value="specific">Specific tower(s)</option>
           </select>
+          {allocLocked && <p className="mt-1 text-[11px] text-slate-400">Set by category “{selCat.name}”.</p>}
         </div>
         {form.allocationType === "all" ? (
           <div>

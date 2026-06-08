@@ -2,6 +2,7 @@ import Unit from "@/models/Unit";
 import Expense from "@/models/Expense";
 import Bill from "@/models/Bill";
 import Society from "@/models/Society";
+import Block from "@/models/Block";
 import {
   dueDateForPeriod,
   billStatus,
@@ -43,6 +44,15 @@ export async function generateBills(societyId, period, scopeBlocks = null, opts 
   if (units.length === 0) {
     return { created: 0, message: "No units to bill." };
   }
+  // per-tower MOFA overrides
+  const blocks = await Block.find({ societyId }).lean();
+  const blockByCode = new Map(blocks.map((b) => [b.code, b]));
+  // resolve a charge-head rate for a unit: tower override (if enabled) → society
+  const rateFor = (u, key) => {
+    const blk = blockByCode.get(u.blockCode);
+    const o = blk && blk.mofaOverride && blk.settings ? blk.settings[key] : null;
+    return o == null ? cfg[key] : o;
+  };
   const scoped = Array.isArray(scopeBlocks) && scopeBlocks.length > 0;
   const billable = scoped ? units.filter((u) => scopeBlocks.includes(u.blockCode)) : units;
 
@@ -108,19 +118,19 @@ export async function generateBills(societyId, period, scopeBlocks = null, opts 
     const common = commonByUnit.get(String(u._id)) || { amount: 0, items: [] };
     const commonCharge = round(common.amount);
 
-    // MOFA bye-law heads.
+    // MOFA bye-law heads (per-tower override → society default).
     // Monthly maintenance / service charge: per-unit override > per-sqft > flat fee.
     let serviceCharge;
     if (u.monthlyMaintenance != null && u.monthlyMaintenance > 0) {
       serviceCharge = round(u.monthlyMaintenance);
-    } else if (cfg.maintenanceBasis === "sqft") {
-      serviceCharge = round((u.areaSqft || 0) * (cfg.serviceChargePerSqft || 0));
+    } else if (rateFor(u, "maintenanceBasis") === "sqft") {
+      serviceCharge = round((u.areaSqft || 0) * (rateFor(u, "serviceChargePerSqft") || 0));
     } else {
-      serviceCharge = round(cfg.serviceChargePerFlat || 0);
+      serviceCharge = round(rateFor(u, "serviceChargePerFlat") || 0);
     }
-    const sinkingFund = round((u.areaSqft || 0) * (cfg.sinkingFundRatePerSqft || 0));
-    const repairFund = round((u.areaSqft || 0) * (cfg.repairFundRatePerSqft || 0));
-    const waterCharge = round((u.waterInlets || 1) * (cfg.waterChargePerInlet || 0));
+    const sinkingFund = round((u.areaSqft || 0) * (rateFor(u, "sinkingFundRatePerSqft") || 0));
+    const repairFund = round((u.areaSqft || 0) * (rateFor(u, "repairFundRatePerSqft") || 0));
+    const waterCharge = round((u.waterInlets || 1) * (rateFor(u, "waterChargePerInlet") || 0));
 
     // Arrears interest on the prior period's unpaid balance.
     const prevBill = prevByUnit.get(String(u._id));
